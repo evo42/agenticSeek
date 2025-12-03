@@ -1,0 +1,23 @@
+# Main research landing page
+research.k42.ventures {
+    root * /var/www/research
+    file_server
+}
+
+# AgenticSeek application
+agenticseek.k42.ventures {
+    reverse_proxy localhost:7777
+}
+
+# Wildcard subdomain routing for research tools
+*.k42.ventures {
+    handle_path {
+        # Route to AgenticSeek by default, but you can customize this logic
+        reverse_proxy localhost:7777
+    }
+}
+
+# Specific wildcard routing for anything.k42.ventures as requested
+anything.k42.ventures {
+    reverse_proxy localhost:7777
+}

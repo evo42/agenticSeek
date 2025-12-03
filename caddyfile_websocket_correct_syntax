@@ -1,0 +1,100 @@
+{
+    # Global settings
+    email admin@a2-agent.k42.ventures
+}
+
+# Main domain serves frontend with API proxying for specific paths
+a2-agent.k42.ventures, a2.k42.ventures, agent.k42.ventures {
+    encode gzip
+
+    # Serve static files for frontend (except API routes)
+    @not_api not path /health* /health/* /v1/* /openrouter/* /docs /api/*
+    handle @not_api {
+        reverse_proxy http://frontend:80
+    }
+
+    # Proxy API requests to the backend
+    handle /health* {
+        reverse_proxy http://backend:8001
+    }
+
+    handle /health/* {
+        reverse_proxy http://backend:8001
+    }
+
+    handle /v1/* {
+        reverse_proxy http://backend:8001
+    }
+
+    handle /openrouter/* {
+        reverse_proxy http://backend:8001
+    }
+
+    handle /docs {
+        reverse_proxy http://backend:8001
+    }
+
+    handle /api/* {
+        reverse_proxy http://backend:8001
+    }
+}
+
+# API-only domain - commented out until needed/verified
+# a2-agent-api.k42.ventures {
+#     encode gzip
+#
+#     # Direct proxy to Ollama chat completions endpoint
+#     handle /ollama/chat/completions {
+#         rewrite * /api/chat
+#         reverse_proxy http://161.97.152.192:11434
+#     }
+#
+#     # Fallback: proxy all other requests to the backend API
+#     handle {
+#         reverse_proxy http://backend:8001
+#     }
+# }
+
+# Research domain - Landing page with tools and A2 Agent
+research.k42.ventures {
+    root * /usr/share/caddy
+    file_server
+}
+
+# AgenticSeek application - handles both frontend and API requests
+agenticseek.k42.ventures {
+    # WebSocket upgrade requests - handle these first
+    @websocket {
+        path /ws*
+        header Connection *Upgrade*
+        header Upgrade websocket
+    }
+    handle @websocket {
+        reverse_proxy http://144.91.103.62:7777
+    }
+    
+    # API endpoints that the frontend expects
+    @api_path path /health /health/* /latest_answer /screenshot /query /is_active /stop /docs /openapi.json
+    handle @api_path {
+        reverse_proxy http://144.91.103.62:7777
+    }
+    
+    # Special handling for screenshots - serve from the screenshots directory
+    @screenshot_path path /screenshots/*
+    handle @screenshot_path {
+        reverse_proxy http://144.91.103.62:7777
+    }
+    
+    # Everything else goes to the frontend
+    reverse_proxy http://144.91.103.62:3000
+}
+
+# AnythingLLM application
+anything.k42.ventures {
+    reverse_proxy http://anythingllm:3001
+}
+
+# General wildcard routing for other research subdomains (optional, can be commented out if not needed)
+# *.k42.ventures {
+#     reverse_proxy http://144.91.103.62:3000
+# }
